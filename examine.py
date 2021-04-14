@@ -34,6 +34,9 @@ while True:
     next_state = env_info.vector_observations[0]  # get the next state
     reward = env_info.rewards[0]  # get the reward
     done = env_info.local_done[0]  # see if episode has finished
+    print('state', state, type(state))
+    print('reward', reward, type(reward))
+    print('action', action, type(action))
     score += reward  # update the score
     state = next_state  # roll over the state to next time step
     if done:  # exit loop if episode finished
