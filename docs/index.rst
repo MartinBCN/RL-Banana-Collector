@@ -4,4 +4,4 @@ RL Banana Collector
    :maxdepth: 3
    :caption: Contents:
 
-   banana-collector
+   banana_collector
