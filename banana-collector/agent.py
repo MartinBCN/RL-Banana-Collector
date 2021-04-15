@@ -1,5 +1,10 @@
+from typing import Tuple
+
 import numpy as np
 import random
+
+from torch import Tensor
+
 from model import QNetwork
 from buffer import ReplayBuffer
 import torch
@@ -8,12 +13,12 @@ import torch.optim as optim
 import torch.nn as nn
 random.seed(42)
 
-BUFFER_SIZE = int(1e5)  # replay buffer size
-BATCH_SIZE = 64  # mini-batch size
-GAMMA = 0.99  # discount factor
-TAU = 1e-3  # for soft update of target parameters
-LR = 5e-4  # learning rate
-UPDATE_EVERY = 4  # how often to update the network
+# BUFFER_SIZE = int(1e5)  # replay buffer size
+# BATCH_SIZE = 64  # mini-batch size
+# GAMMA = 0.99  # discount factor
+# TAU = 1e-3  # for soft update of target parameters
+# LR = 5e-4  # learning rate
+# UPDATE_EVERY = 4  # how often to update the network
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -28,33 +33,69 @@ class Agent:
         dimension of each state
     action_size: int
         dimension of each action
+    buffer_size: int = int(1e5)
+        replay buffer size
+    batch_size: int = 64
+        mini-batch size
+    gamma: float = 0.99
+        discount factor
+    tau: float = 1e-3
+        for soft update of target parameters
+    lr: float = 5e-4
+        Learning rate
+    update_every: int = 4
+        how often to update the network
     """
 
-    def __init__(self, state_size: int, action_size: int) -> None:
+    def __init__(self, state_size: int, action_size: int, buffer_size: int = int(1e5), batch_size: int = 64,
+                 gamma: float = 0.99, tau: float = 1e-3, lr: float = 5e-4, update_every: int = 4) -> None:
         self.state_size = state_size
         self.action_size = action_size
 
         # Q-Network
         self.q_network_local = QNetwork(state_size, action_size).to(device)
         self.q_network_target = QNetwork(state_size, action_size).to(device)
-        self.optimizer = optim.Adam(self.q_network_local.parameters(), lr=LR)
+        self.optimizer = optim.Adam(self.q_network_local.parameters(), lr=lr)
+
+        self.gamma = gamma
+        self.tau = tau
 
         # Replay memory
-        self.memory = ReplayBuffer(action_size, BUFFER_SIZE, BATCH_SIZE)
+        self.batch_size = batch_size
+        self.memory = ReplayBuffer(action_size, buffer_size, batch_size)
         # Initialize time step (for updating every UPDATE_EVERY steps)
         self.t_step = 0
+        self.update_every = update_every
 
-    def step(self, state, action, reward, next_state, done):
+    def step(self, state: np.array, action: int, reward: float, next_state: np.array, done: bool) -> None:
+        """
+        Add a new tuple to the memory and execute the training step after the defined number of time steps
+
+        Parameters
+        ----------
+        state: np.array
+        action: int
+        reward: float
+        next_state: np.array
+        done: bool
+
+        Returns
+        -------
+        loss: float
+            Loss is returned for book-keeping
+        """
+        loss = None
         # Save experience in replay memory
         self.memory.add(state, action, reward, next_state, done)
 
         # Learn every UPDATE_EVERY time steps.
-        self.t_step = (self.t_step + 1) % UPDATE_EVERY
+        self.t_step = (self.t_step + 1) % self.update_every
         if self.t_step == 0:
             # If enough samples are available in memory, get random subset and learn
-            if len(self.memory) > BATCH_SIZE:
+            if len(self.memory) > self.batch_size:
                 experiences = self.memory.sample()
-                self.learn(experiences, GAMMA)
+                loss = self.learn(experiences, self.gamma)
+        return loss
 
     def act(self, state: np.array, eps: float = 0.) -> np.array:
         """
@@ -81,14 +122,23 @@ class Agent:
         else:
             return random.choice(np.arange(self.action_size))
 
-    def learn(self, experiences, gamma):
-        """Update value parameters using given batch of experience tuples.
-
-        Params
-        ======
-            experiences (Tuple[torch.Variable]): tuple of (s, a, r, s', done) tuples
-            gamma (float): discount factor
+    def learn(self, experiences: Tuple[Tensor, Tensor, Tensor, Tensor, Tensor],
+              gamma: float) -> float:
         """
+        Update value parameters using given batch of experience tuples.
+
+        Parameters
+        ----------
+        experiences: Tuple[torch.Variable]
+            tuple of (s, a, r, s', done) tuples
+        gamma: float
+            discount factor
+        Returns
+        -------
+        loss: float
+            Loss is returned for book-keeping
+        """
+
         states, actions, rewards, next_states, dones = experiences
 
         # Get max predicted Q values (for next states) from target model
@@ -107,7 +157,9 @@ class Agent:
         self.optimizer.step()
 
         # ------------------- update target network ------------------- #
-        self.soft_update(self.q_network_local, self.q_network_local, TAU)
+        self.soft_update(self.q_network_local, self.q_network_local, self.tau)
+
+        return float(loss.detach().cpu().numpy())
 
     @staticmethod
     def soft_update(local_model: nn.Module, target_model: nn.Module, tau: float):
@@ -130,4 +182,3 @@ class Agent:
         """
         for target_param, local_param in zip(target_model.parameters(), local_model.parameters()):
             target_param.data.copy_(tau * local_param.data + (1.0 - tau) * target_param.data)
-
