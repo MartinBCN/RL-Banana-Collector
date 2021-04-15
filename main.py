@@ -112,4 +112,4 @@ if __name__ == '__main__':
     LR = 5e-4  # learning rate
     UPDATE_EVERY = 4  # how often to update the network
 
-    dqn(n_episodes=200)
+    dqn(n_episodes=2000)
