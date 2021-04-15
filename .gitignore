@@ -132,4 +132,7 @@ dmypy.json
 /figures/
 /data/
 /models/
+/public/
 /deep-reinforcement-learning/
+/docs/banana-collector.rst
+/docs/modules.rst
