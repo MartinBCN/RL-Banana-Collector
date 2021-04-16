@@ -5,22 +5,14 @@ import numpy as np
 import random
 
 from torch import Tensor
+from torch.optim import Adam
 
 from model import QNetwork
 from buffer import ReplayBuffer
 import torch
 import torch.nn.functional as F
-import torch.optim as optim
 import torch.nn as nn
 random.seed(42)
-
-# BUFFER_SIZE = int(1e5)  # replay buffer size
-# BATCH_SIZE = 64  # mini-batch size
-# GAMMA = 0.99  # discount factor
-# TAU = 1e-3  # for soft update of target parameters
-# LR = 5e-4  # learning rate
-# UPDATE_EVERY = 4  # how often to update the network
-
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
@@ -62,7 +54,7 @@ class Agent:
         # Q-Network
         self.q_network_local = QNetwork(state_size, action_size).to(device)
         self.q_network_target = QNetwork(state_size, action_size).to(device)
-        self.optimizer = optim.Adam(self.q_network_local.parameters(), lr=lr)
+        self.optimizer = Adam(self.q_network_local.parameters(), lr=lr)
 
         self.gamma = gamma
         self.tau = tau
@@ -135,7 +127,6 @@ class Agent:
         Parameters
         ----------
         state: np.array
-        eps: float, default = 0.
 
         Returns
         -------
@@ -160,7 +151,7 @@ class Agent:
 
         Parameters
         ----------
-        experiences: Tuple[torch.Variable]
+        experiences: Tuple[Tensor, Tensor, Tensor, Tensor, Tensor]
             tuple of (s, a, r, s', done) tuples
         gamma: float
             discount factor
@@ -173,7 +164,7 @@ class Agent:
         states, actions, rewards, next_states, dones = experiences
 
         # Get max predicted Q values (for next states) from target model
-        q_targets_next = self.q_network_local(next_states).detach().max(1)[0].unsqueeze(1)
+        q_targets_next = self.q_network_target(next_states).detach().max(1)[0].unsqueeze(1)
         # Compute Q targets for current states
         q_targets = rewards + (gamma * q_targets_next * (1 - dones))
 
@@ -188,7 +179,7 @@ class Agent:
         self.optimizer.step()
 
         # ------------------- update target network ------------------- #
-        self.soft_update(self.q_network_local, self.q_network_local, self.tau)
+        self.soft_update(self.q_network_local, self.q_network_target, self.tau)
 
         return float(loss.detach().cpu().numpy())
 
