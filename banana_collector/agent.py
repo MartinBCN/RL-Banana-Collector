@@ -1,3 +1,4 @@
+from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Tuple, Union
 
@@ -16,7 +17,7 @@ random.seed(42)
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
-class Agent:
+class Agent(ABC):
     """
     Interacts with and learns from the environment.
 
@@ -46,15 +47,14 @@ class Agent:
         self.state_size = state_size
         self.action_size = action_size
 
+        # Q-Network
+        self.q_network = QNetwork(state_size, action_size).to(device)
+        self.optimizer = Adam(self.q_network.parameters(), lr=lr)
+
         # Epsilon
         self.eps = eps_start
         self.eps_end = eps_end
         self.eps_decay = eps_decay
-
-        # Q-Network
-        self.q_network_local = QNetwork(state_size, action_size).to(device)
-        self.q_network_target = QNetwork(state_size, action_size).to(device)
-        self.optimizer = Adam(self.q_network_local.parameters(), lr=lr)
 
         self.gamma = gamma
         self.tau = tau
@@ -117,7 +117,7 @@ class Agent:
             # If enough samples are available in memory, get random subset and learn
             if len(self.memory) > self.batch_size:
                 experiences = self.memory.sample()
-                loss = self.learn(experiences, self.gamma)
+                loss = self.learn(experiences)
         return loss
 
     def act(self, state: np.array) -> np.array:
@@ -133,10 +133,10 @@ class Agent:
         action: np.array
         """
         state = torch.from_numpy(state).float().unsqueeze(0).to(device)
-        self.q_network_local.eval()
+        self.q_network.eval()
         with torch.no_grad():
-            action_values = self.q_network_local(state)
-        self.q_network_local.train()
+            action_values = self.q_network(state)
+        self.q_network.train()
 
         # Epsilon-greedy action selection
         if random.random() > self.epsilon():
@@ -144,8 +144,8 @@ class Agent:
         else:
             return random.choice(np.arange(self.action_size))
 
-    def learn(self, experiences: Tuple[Tensor, Tensor, Tensor, Tensor, Tensor],
-              gamma: float) -> float:
+    @abstractmethod
+    def learn(self, experiences: Tuple[Tensor, Tensor, Tensor, Tensor, Tensor]) -> float:
         """
         Update value parameters using given batch of experience tuples.
 
@@ -153,35 +153,11 @@ class Agent:
         ----------
         experiences: Tuple[Tensor, Tensor, Tensor, Tensor, Tensor]
             tuple of (s, a, r, s', done) tuples
-        gamma: float
-            discount factor
         Returns
         -------
         loss: float
             Loss is returned for book-keeping
         """
-
-        states, actions, rewards, next_states, dones = experiences
-
-        # Get max predicted Q values (for next states) from target model
-        q_targets_next = self.q_network_target(next_states).detach().max(1)[0].unsqueeze(1)
-        # Compute Q targets for current states
-        q_targets = rewards + (gamma * q_targets_next * (1 - dones))
-
-        # Get expected Q values from local model
-        q_expected = self.q_network_local(states).gather(1, actions)
-
-        # Compute loss
-        loss = F.mse_loss(q_expected, q_targets)
-        # Minimize the loss
-        self.optimizer.zero_grad()
-        loss.backward()
-        self.optimizer.step()
-
-        # ------------------- update target network ------------------- #
-        self.soft_update(self.q_network_local, self.q_network_target, self.tau)
-
-        return float(loss.detach().cpu().numpy())
 
     @staticmethod
     def soft_update(local_model: nn.Module, target_model: nn.Module, tau: float):
@@ -217,3 +193,94 @@ class Agent:
         -------
         None
         """
+        if type(file_name) is str:
+            file_name = Path(file_name)
+        file_name.parents[0].mkdir(exist_ok=True, parents=True)
+        torch.save(self.q_network.state_dict(), file_name)
+
+
+class FixedQTargetAgent(Agent):
+    def __init__(self, state_size: int, action_size: int, buffer_size: int = int(1e5), batch_size: int = 64,
+                 gamma: float = 0.99, tau: float = 1e-3, lr: float = 5e-4, update_every: int = 4,
+                 eps_start: float = 1.0, eps_end: float = 0.01, eps_decay: float = 0.995) -> None:
+        super(FixedQTargetAgent, self).__init__(state_size, action_size, buffer_size, batch_size, gamma, tau, lr,
+                                                update_every, eps_start, eps_end, eps_decay)
+        # Q-Network
+        self.q_network_target = QNetwork(state_size, action_size).to(device)
+
+    def learn(self, experiences: Tuple[Tensor, Tensor, Tensor, Tensor, Tensor]) -> float:
+        """
+        Update value parameters using given batch of experience tuples.
+
+        Parameters
+        ----------
+        experiences: Tuple[Tensor, Tensor, Tensor, Tensor, Tensor]
+            tuple of (s, a, r, s', done) tuples
+        Returns
+        -------
+        loss: float
+            Loss is returned for book-keeping
+        """
+
+        states, actions, rewards, next_states, dones = experiences
+
+        # Get max predicted Q values (for next states) from target model
+        q_targets_next = self.q_network_target(next_states).detach().max(1)[0].unsqueeze(1)
+        # Compute Q targets for current states
+        q_targets = rewards + (self.gamma * q_targets_next * (1 - dones))
+
+        # Get expected Q values from local model
+        q_expected = self.q_network(states).gather(1, actions)
+
+        # Compute loss
+        loss = F.mse_loss(q_expected, q_targets)
+        # Minimize the loss
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
+
+        # ------------------- update target network ------------------- #
+        self.soft_update(self.q_network, self.q_network_target, self.tau)
+
+        return float(loss.detach().cpu().numpy())
+
+
+class BasicAgent(Agent):
+    def __init__(self, state_size: int, action_size: int, buffer_size: int = int(1e5), batch_size: int = 64,
+                 gamma: float = 0.99, tau: float = 1e-3, lr: float = 5e-4, update_every: int = 4,
+                 eps_start: float = 1.0, eps_end: float = 0.01, eps_decay: float = 0.995) -> None:
+        super(BasicAgent, self).__init__(state_size, action_size, buffer_size, batch_size, gamma, tau, lr,
+                                         update_every, eps_start, eps_end, eps_decay)
+
+    def learn(self, experiences: Tuple[Tensor, Tensor, Tensor, Tensor, Tensor]) -> float:
+        """
+        Update value parameters using given batch of experience tuples.
+
+        Parameters
+        ----------
+        experiences: Tuple[Tensor, Tensor, Tensor, Tensor, Tensor]
+            tuple of (s, a, r, s', done) tuples
+        Returns
+        -------
+        loss: float
+            Loss is returned for book-keeping
+        """
+
+        states, actions, rewards, next_states, dones = experiences
+
+        # Get max predicted Q values (for next states) from target model
+        q_targets_next = self.q_network(next_states).detach().max(1)[0].unsqueeze(1)
+        # Compute Q targets for current states
+        q_targets = rewards + (self.gamma * q_targets_next * (1 - dones))
+
+        # Get expected Q values from local model
+        q_expected = self.q_network(states).gather(1, actions)
+
+        # Compute loss
+        loss = F.mse_loss(q_expected, q_targets)
+        # Minimize the loss
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
+
+        return float(loss.detach().cpu().numpy())

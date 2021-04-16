@@ -2,11 +2,11 @@ from pathlib import Path
 
 from unityagents import UnityEnvironment
 import os
-from agent import Agent
+from agent import Agent, BasicAgent, FixedQTargetAgent
 from training import Trainer
 
 
-def dqn(n_episodes: int = 2000, max_t: int = 1000, eps_start: float = 1.0,
+def dqn(agent_type: str, n_episodes: int = 2000, max_t: int = 1000, eps_start: float = 1.0,
         eps_end: float = 0.01, eps_decay: float = 0.995, buffer_size: int = int(1e5), batch_size: int = 64,
         gamma: float = 0.99, tau: float = 1e-3, lr: float = 5e-4, update_every: int = 4) -> None:
     """
@@ -14,6 +14,8 @@ def dqn(n_episodes: int = 2000, max_t: int = 1000, eps_start: float = 1.0,
 
     Parameters
     ----------
+    agent_type: str
+        Define the type of agent being used
     n_episodes: int, default = 2000
         maximum number of training episodes
     max_t: int, default = 1000
@@ -48,8 +50,9 @@ def dqn(n_episodes: int = 2000, max_t: int = 1000, eps_start: float = 1.0,
                       max_t=max_t)
 
     state_size, action_size = trainer.get_sizes()
-
-    agent = Agent(state_size=state_size,
+    agents = {'basic': BasicAgent, 'fixed_target': FixedQTargetAgent}
+    agent = agents[agent_type]
+    agent = agent(state_size=state_size,
                   action_size=action_size,
                   buffer_size=buffer_size,
                   batch_size=batch_size,
@@ -67,9 +70,11 @@ def dqn(n_episodes: int = 2000, max_t: int = 1000, eps_start: float = 1.0,
     trainer.plot(fn)
 
     if trainer.solved:
-        agent.save('test.pth')
+        model_dir = os.environ.get('MODEL_DIR', 'models')
+        fn = Path(model_dir) / f'{agent_type}.pt'
+        agent.save(fn)
 
 
 if __name__ == '__main__':
 
-    dqn(n_episodes=2000)
+    dqn(agent_type='basic', n_episodes=2000)
