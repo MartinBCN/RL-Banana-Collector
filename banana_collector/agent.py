@@ -1,4 +1,5 @@
-from typing import Tuple
+from pathlib import Path
+from typing import Tuple, Union
 
 import numpy as np
 import random
@@ -48,9 +49,15 @@ class Agent:
     """
 
     def __init__(self, state_size: int, action_size: int, buffer_size: int = int(1e5), batch_size: int = 64,
-                 gamma: float = 0.99, tau: float = 1e-3, lr: float = 5e-4, update_every: int = 4) -> None:
+                 gamma: float = 0.99, tau: float = 1e-3, lr: float = 5e-4, update_every: int = 4,
+                 eps_start: float = 1.0, eps_end: float = 0.01, eps_decay: float = 0.995) -> None:
         self.state_size = state_size
         self.action_size = action_size
+
+        # Epsilon
+        self.eps = eps_start
+        self.eps_end = eps_end
+        self.eps_decay = eps_decay
 
         # Q-Network
         self.q_network_local = QNetwork(state_size, action_size).to(device)
@@ -66,6 +73,30 @@ class Agent:
         # Initialize time step (for updating every UPDATE_EVERY steps)
         self.t_step = 0
         self.update_every = update_every
+
+        self.training_mode = True
+
+    def step_epsilon(self):
+        """
+        decrease epsilon
+
+        Returns
+        -------
+
+        """
+        self.eps = max(self.eps_end, self.eps_decay * self.eps)
+
+    def eval(self):
+        self.training_mode = False
+
+    def train(self):
+        self.training_mode = True
+
+    def epsilon(self):
+        if self.training_mode:
+            return self.eps
+        else:
+            return 0.
 
     def step(self, state: np.array, action: int, reward: float, next_state: np.array, done: bool) -> None:
         """
@@ -97,7 +128,7 @@ class Agent:
                 loss = self.learn(experiences, self.gamma)
         return loss
 
-    def act(self, state: np.array, eps: float = 0.) -> np.array:
+    def act(self, state: np.array) -> np.array:
         """
         Returns actions for given state as per current policy
 
@@ -117,7 +148,7 @@ class Agent:
         self.q_network_local.train()
 
         # Epsilon-greedy action selection
-        if random.random() > eps:
+        if random.random() > self.epsilon():
             return np.argmax(action_values.cpu().data.numpy())
         else:
             return random.choice(np.arange(self.action_size))
@@ -142,15 +173,15 @@ class Agent:
         states, actions, rewards, next_states, dones = experiences
 
         # Get max predicted Q values (for next states) from target model
-        Q_targets_next = self.q_network_local(next_states).detach().max(1)[0].unsqueeze(1)
+        q_targets_next = self.q_network_local(next_states).detach().max(1)[0].unsqueeze(1)
         # Compute Q targets for current states
-        Q_targets = rewards + (gamma * Q_targets_next * (1 - dones))
+        q_targets = rewards + (gamma * q_targets_next * (1 - dones))
 
         # Get expected Q values from local model
-        Q_expected = self.q_network_local(states).gather(1, actions)
+        q_expected = self.q_network_local(states).gather(1, actions)
 
         # Compute loss
-        loss = F.mse_loss(Q_expected, Q_targets)
+        loss = F.mse_loss(q_expected, q_targets)
         # Minimize the loss
         self.optimizer.zero_grad()
         loss.backward()
@@ -182,3 +213,16 @@ class Agent:
         """
         for target_param, local_param in zip(target_model.parameters(), local_model.parameters()):
             target_param.data.copy_(tau * local_param.data + (1.0 - tau) * target_param.data)
+
+    def save(self, file_name: Union[str, Path]) -> None:
+        """
+        Save model
+
+        Parameters
+        ----------
+        file_name: Union[str, Path]
+
+        Returns
+        -------
+        None
+        """
