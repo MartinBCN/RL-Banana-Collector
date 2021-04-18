@@ -252,6 +252,7 @@ class DoubleQAgent(Agent):
         super(DoubleQAgent, self).__init__(state_size, action_size, buffer_size, batch_size, gamma, tau, lr,
                                            update_every, eps_start, eps_end, eps_decay)
         # Q-Network
+
         self.q_network_target = DQN(state_size, action_size).to(device)
         self.optimizer_target = Adam(self.q_network_target.parameters(), lr=lr)
 
@@ -271,30 +272,29 @@ class DoubleQAgent(Agent):
 
         states, actions, rewards, next_states, dones = experiences
 
-        if random.random() >= 0.5:
-            optimizer = self.optimizer
-            q1 = self.q_network
-            q2 = self.q_network_target
-        else:
-            optimizer = self.optimizer_target
-            q1 = self.q_network_target
-            q2 = self.q_network
+        q_targets_next_1 = self.q_network(next_states).detach().max(1)[0].unsqueeze(1)
+        q_targets_next_2 = self.q_network_target(next_states).detach().max(1)[0].unsqueeze(1)
+        q_targets_next = torch.min(q_targets_next_1, q_targets_next_2)
 
-        q_targets_next = q2(next_states).detach().max(1)[0].unsqueeze(1)
         q_targets = rewards + (self.gamma * q_targets_next * (1 - dones))
-        q_expected = q1(states).gather(1, actions)
+
+        q_expected_1 = self.q_network(states).gather(1, actions)
+        q_expected_2 = self.q_network_target(states).gather(1, actions)
 
         # Compute loss
-        loss = F.mse_loss(q_expected, q_targets)
+        loss_1 = F.mse_loss(q_expected_1, q_targets)
+        loss_2 = F.mse_loss(q_expected_2, q_targets)
+
         # Minimize the loss
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
+        self.optimizer.zero_grad()
+        loss_1.backward()
+        self.optimizer.step()
 
-        # ------------------- update target network ------------------- #
-        self.soft_update(q2, q1, self.tau)
+        self.optimizer_target.zero_grad()
+        loss_2.backward()
+        self.optimizer_target.step()
 
-        return float(loss.detach().cpu().numpy())
+        return (float(loss_1.detach().cpu().numpy()) + float(loss_2.detach().cpu().numpy())) / 2
 
 
 class BasicAgent(Agent):

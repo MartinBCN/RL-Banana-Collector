@@ -87,7 +87,7 @@ def dqn(agent_type: str, n_episodes: int = 2000, max_t: int = 1000, eps_start: f
 
 
 if __name__ == '__main__':
-    for agent in AGENTS.keys():
-        dqn(agent_type=agent, n_episodes=2500)
+    # for agent in AGENTS.keys():
+    #     dqn(agent_type=agent, n_episodes=2500)
 
-    # dqn(agent_type='fixed_target_dueling', n_episodes=2000)
+    dqn(agent_type='double_q', n_episodes=2000)
