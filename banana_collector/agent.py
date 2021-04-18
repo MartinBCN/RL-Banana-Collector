@@ -8,7 +8,7 @@ import random
 from torch import Tensor
 from torch.optim import Adam
 
-from model import QNetwork
+from model import DQN, DuelingDQN
 from buffer import ReplayBuffer
 import torch
 import torch.nn.functional as F
@@ -48,7 +48,7 @@ class Agent(ABC):
         self.action_size = action_size
 
         # Q-Network
-        self.q_network = QNetwork(state_size, action_size).to(device)
+        self.q_network = DQN(state_size, action_size).to(device)
         self.optimizer = Adam(self.q_network.parameters(), lr=lr)
 
         # Epsilon
@@ -206,7 +206,7 @@ class FixedQTargetAgent(Agent):
         super(FixedQTargetAgent, self).__init__(state_size, action_size, buffer_size, batch_size, gamma, tau, lr,
                                                 update_every, eps_start, eps_end, eps_decay)
         # Q-Network
-        self.q_network_target = QNetwork(state_size, action_size).to(device)
+        self.q_network_target = DQN(state_size, action_size).to(device)
 
     def learn(self, experiences: Tuple[Tensor, Tensor, Tensor, Tensor, Tensor]) -> float:
         """
@@ -241,6 +241,58 @@ class FixedQTargetAgent(Agent):
 
         # ------------------- update target network ------------------- #
         self.soft_update(self.q_network, self.q_network_target, self.tau)
+
+        return float(loss.detach().cpu().numpy())
+
+
+class DoubleQAgent(Agent):
+    def __init__(self, state_size: int, action_size: int, buffer_size: int = int(1e5), batch_size: int = 64,
+                 gamma: float = 0.99, tau: float = 1e-3, lr: float = 5e-4, update_every: int = 4,
+                 eps_start: float = 1.0, eps_end: float = 0.01, eps_decay: float = 0.995) -> None:
+        super(DoubleQAgent, self).__init__(state_size, action_size, buffer_size, batch_size, gamma, tau, lr,
+                                           update_every, eps_start, eps_end, eps_decay)
+        # Q-Network
+        self.q_network_target = DQN(state_size, action_size).to(device)
+        self.optimizer_target = Adam(self.q_network_target.parameters(), lr=lr)
+
+    def learn(self, experiences: Tuple[Tensor, Tensor, Tensor, Tensor, Tensor]) -> float:
+        """
+        Update value parameters using given batch of experience tuples.
+
+        Parameters
+        ----------
+        experiences: Tuple[Tensor, Tensor, Tensor, Tensor, Tensor]
+            tuple of (s, a, r, s', done) tuples
+        Returns
+        -------
+        loss: float
+            Loss is returned for book-keeping
+        """
+
+        states, actions, rewards, next_states, dones = experiences
+
+        if random.random() >= 0.5:
+            optimizer = self.optimizer
+            q1 = self.q_network
+            q2 = self.q_network_target
+        else:
+            optimizer = self.optimizer_target
+            q1 = self.q_network_target
+            q2 = self.q_network
+
+        q_targets_next = q2(next_states).detach().max(1)[0].unsqueeze(1)
+        q_targets = rewards + (self.gamma * q_targets_next * (1 - dones))
+        q_expected = q1(states).gather(1, actions)
+
+        # Compute loss
+        loss = F.mse_loss(q_expected, q_targets)
+        # Minimize the loss
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+
+        # ------------------- update target network ------------------- #
+        self.soft_update(q2, q1, self.tau)
 
         return float(loss.detach().cpu().numpy())
 
@@ -284,3 +336,26 @@ class BasicAgent(Agent):
         self.optimizer.step()
 
         return float(loss.detach().cpu().numpy())
+
+
+class DuelingBasicAgent(BasicAgent):
+    def __init__(self, state_size: int, action_size: int, buffer_size: int = int(1e5), batch_size: int = 64,
+                 gamma: float = 0.99, tau: float = 1e-3, lr: float = 5e-4, update_every: int = 4,
+                 eps_start: float = 1.0, eps_end: float = 0.01, eps_decay: float = 0.995):
+        super(DuelingBasicAgent, self).__init__(state_size, action_size, buffer_size, batch_size, gamma, tau, lr,
+                                                update_every, eps_start, eps_end, eps_decay)
+        # Q-Network
+        self.q_network = DuelingDQN(state_size, action_size).to(device)
+        self.optimizer = Adam(self.q_network.parameters(), lr=lr)
+
+
+class FixedTargetDuelingAgent(FixedQTargetAgent):
+    def __init__(self, state_size: int, action_size: int, buffer_size: int = int(1e5), batch_size: int = 64,
+                 gamma: float = 0.99, tau: float = 1e-3, lr: float = 5e-4, update_every: int = 4,
+                 eps_start: float = 1.0, eps_end: float = 0.01, eps_decay: float = 0.995):
+        super(FixedTargetDuelingAgent, self).__init__(state_size, action_size, buffer_size, batch_size, gamma, tau, lr,
+                                                      update_every, eps_start, eps_end, eps_decay)
+
+        self.q_network_target = DuelingDQN(state_size, action_size).to(device)
+        self.q_network = DuelingDQN(state_size, action_size).to(device)
+        self.optimizer = Adam(self.q_network.parameters(), lr=lr)

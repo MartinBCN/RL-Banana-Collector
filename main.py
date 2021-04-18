@@ -2,8 +2,11 @@ from pathlib import Path
 
 from unityagents import UnityEnvironment
 import os
-from agent import Agent, BasicAgent, FixedQTargetAgent
+from agent import BasicAgent, FixedQTargetAgent, DoubleQAgent, DuelingBasicAgent, FixedTargetDuelingAgent
 from training import Trainer
+
+AGENTS = {'basic': BasicAgent, 'fixed_target': FixedQTargetAgent, 'double_q': DoubleQAgent,
+          'dueling_basic': DuelingBasicAgent, 'fixed_target_dueling': FixedTargetDuelingAgent}
 
 
 def dqn(agent_type: str, n_episodes: int = 2000, max_t: int = 1000, eps_start: float = 1.0,
@@ -45,13 +48,18 @@ def dqn(agent_type: str, n_episodes: int = 2000, max_t: int = 1000, eps_start: f
     """
     env = UnityEnvironment('data/Banana_Linux/Banana.x86_64', no_graphics=True)
 
+    # There is a version conflict between the Torch version that came with the Unity Environment
+    # and Tensorboard. Resolving this may be complicated -> drop Tensorboard for the time being
+    # writer = SummaryWriter(f'runs/{agent_type}')
+
     trainer = Trainer(env,
                       brain=0,
                       max_t=max_t)
 
     state_size, action_size = trainer.get_sizes()
-    agents = {'basic': BasicAgent, 'fixed_target': FixedQTargetAgent}
-    agent = agents[agent_type]
+    assert agent_type in AGENTS.keys(), f'agent_type needs to be choice of {AGENTS.keys()}'
+
+    agent = AGENTS[agent_type]
     agent = agent(state_size=state_size,
                   action_size=action_size,
                   buffer_size=buffer_size,
@@ -66,8 +74,11 @@ def dqn(agent_type: str, n_episodes: int = 2000, max_t: int = 1000, eps_start: f
     )
 
     trainer.train(agent, n_episodes=n_episodes)
-    fn = Path(os.environ.get('FIG_DIR', 'figures')) / 'training_results.png'
+    fn = Path(os.environ.get('FIG_DIR', 'figures')) / f'{agent_type}.png'
     trainer.plot(fn)
+
+    fn = Path(os.environ.get('LOG_DIR', 'runs')) / f'{agent_type}.json'
+    trainer.save_logs(fn)
 
     if trainer.solved:
         model_dir = os.environ.get('MODEL_DIR', 'models')
@@ -76,5 +87,7 @@ def dqn(agent_type: str, n_episodes: int = 2000, max_t: int = 1000, eps_start: f
 
 
 if __name__ == '__main__':
+    for agent in AGENTS.keys():
+        dqn(agent_type=agent, n_episodes=2500)
 
-    dqn(agent_type='basic', n_episodes=2000)
+    # dqn(agent_type='fixed_target_dueling', n_episodes=2000)

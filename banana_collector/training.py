@@ -1,7 +1,9 @@
+import json
 from collections import deque
 from pathlib import Path
 from typing import Union, Tuple
 import numpy as np
+# from torch.utils.tensorboard import SummaryWriter
 from unityagents import UnityEnvironment
 from agent import Agent
 import matplotlib.pyplot as plt
@@ -53,7 +55,8 @@ class Trainer:
             self.logger[name].append(value)
         else:
             self.logger[name] = [value]
-        # ToDo: Tensorboard
+        # if self.experiment_writer is not None:
+        #     self.experiment_writer.add_scalar(name, value)
 
     def train(self, agent: Agent, n_episodes: int) -> None:
         """
@@ -154,3 +157,23 @@ class Trainer:
                 file_name = Path(file_name)
             file_name.parents[0].mkdir(parents=True, exist_ok=True)
             fig.savefig(file_name)
+
+    def save_logs(self, file_name: Union[str, Path]):
+        """
+        Save the training logs as json
+
+        Parameters
+        ----------
+        file_name
+
+        Returns
+        -------
+
+        """
+        if type(file_name) is str:
+            file_name = Path(file_name)
+        file_name.parents[0].mkdir(parents=True, exist_ok=True)
+        # Remove dequeue before serialising
+        to_file = {k: v for k, v in self.logger.items() if k != 'scores_window'}
+        with open(file_name, 'w') as f:
+            json.dump(to_file, f)
