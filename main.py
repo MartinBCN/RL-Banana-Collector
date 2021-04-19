@@ -2,11 +2,15 @@ from pathlib import Path
 
 from unityagents import UnityEnvironment
 import os
-from agent import BasicAgent, FixedQTargetAgent, DoubleQAgent, DuelingBasicAgent, FixedTargetDuelingAgent
-from training import Trainer
+from banana_collector.agent import BasicAgent, FixedQTargetAgent, DoubleQAgent, DuelingBasicAgent, FixedTargetDuelingAgent
+from banana_collector.training import Trainer
 
 AGENTS = {'basic': BasicAgent, 'fixed_target': FixedQTargetAgent, 'double_q': DoubleQAgent,
           'dueling_basic': DuelingBasicAgent, 'fixed_target_dueling': FixedTargetDuelingAgent}
+
+
+def parse_arguments():
+    pass
 
 
 def dqn(agent_type: str, n_episodes: int = 2000, max_t: int = 1000, eps_start: float = 1.0,
@@ -74,7 +78,7 @@ def dqn(agent_type: str, n_episodes: int = 2000, max_t: int = 1000, eps_start: f
     )
 
     trainer.train(agent, n_episodes=n_episodes)
-    fn = Path(os.environ.get('FIG_DIR', 'figures')) / f'{agent_type}.png'
+    fn = Path(os.environ.get('FIG_DIR', '_includes')) / f'{agent_type}.png'
     trainer.plot(fn)
 
     fn = Path(os.environ.get('LOG_DIR', 'runs')) / f'{agent_type}.json'
@@ -90,4 +94,4 @@ if __name__ == '__main__':
     # for agent in AGENTS.keys():
     #     dqn(agent_type=agent, n_episodes=2500)
 
-    dqn(agent_type='double_q', n_episodes=2000)
+    dqn(agent_type='fixed_target_dueling', n_episodes=2000)

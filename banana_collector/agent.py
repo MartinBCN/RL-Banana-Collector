@@ -8,8 +8,8 @@ import random
 from torch import Tensor
 from torch.optim import Adam
 
-from model import DQN, DuelingDQN
-from buffer import ReplayBuffer
+from banana_collector.model import DQN, DuelingDQN
+from banana_collector.buffer import ReplayBuffer
 import torch
 import torch.nn.functional as F
 import torch.nn as nn

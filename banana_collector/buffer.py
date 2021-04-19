@@ -2,8 +2,9 @@ from typing import Tuple
 import numpy as np
 import random
 from collections import namedtuple, deque
-from tensorflow import Tensor
 import torch
+from torch import Tensor
+
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 random.seed(42)
 

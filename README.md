@@ -9,11 +9,14 @@ the task faster than others. This includes
 * Fixed Target DQN
 * Double Q Learning
 * Dueling DQN
+
 and combinations of the above. The task at hand is to navigate an environment by choosing
 an action out of four choices (forward, back, left, right) in reaction to the game state
 which consists of 37 dimensions that include the agent's velocity along 
-with ray-based perception of objects around the agent's forward direction.
-
+with ray-based perception of objects around the agent's forward direction. 
+Collection of a yellow banana gives a reward of +1, collection of a blue banana
+a penalty of -1.
+  
 ## Getting Started
 The following section is taken from the Deep Reinforcement Udacity class
 

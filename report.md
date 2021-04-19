@@ -1,17 +1,24 @@
 # Report
 ## Learning Algorithm
 	
+The underlying Deep-Q Network consists of two hidden layers of size 64 with ReLU activation.
+Input and output size are defined by the environment as 37 and 4, respectively.
+As an alternative a Dueling Deep-Q Network was tested where the outputs of the second hidden
+layer are routed through a value- and an advantage-layer before being aggregated again. 
 
-The report clearly describes the learning algorithm, along with the chosen hyperparameters. It also describes the model architectures for any neural networks.
+For the training algorithm a variety of approaches was tested:
+* simple DQN learning where the 
 
 ## Plot of Rewards
 	
+{% include scores.html %}
 
 A plot of rewards per episode is included to illustrate that the agent is able to receive an average reward (over 100 episodes) of at least +13. The submission reports the number of episodes needed to solve the environment.
 
 ## Ideas for Future Work
 The following tasks are partially or fully open:
-* Fix the Double-Q implementation: the current one does not seem to learn
+* Fix the Double-Q implementation: the current one does not seem to learn fast enough;
+  either the implementation is wrong, or it needs improvement
 * Include prioritized experience replay
 * Use (probably two) convolution layers to learn from the graphics output rather than the 
     environment state

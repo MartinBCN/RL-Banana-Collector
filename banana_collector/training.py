@@ -5,7 +5,7 @@ from typing import Union, Tuple
 import numpy as np
 # from torch.utils.tensorboard import SummaryWriter
 from unityagents import UnityEnvironment
-from agent import Agent
+from banana_collector.agent import Agent
 import matplotlib.pyplot as plt
 plt.style.use('ggplot')
 
@@ -105,6 +105,7 @@ class Trainer:
 
             mean_score = np.mean(self.logger['score_window'])
             log_str = f'\rEpisode {i_episode}\tAverage Score: {mean_score:.2f}'
+            self.log_scalar('Mean Score', float(mean_score))
             print(log_str, end="")
             if i_episode % 100 == 0:
                 print(log_str)

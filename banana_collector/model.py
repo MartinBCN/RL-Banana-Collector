@@ -63,10 +63,12 @@ class DuelingDQN(nn.Module):
         Dimension of each state
     action_size: int
         Dimension of each action
-    fc1_units: int
+    fc1_units: int, default = 64
         Number of nodes in first hidden layer
-    fc2_units: int
+    fc2_units: int, default = 64
         Number of nodes in second hidden layer
+    value_layer_units: int, default = 64
+        Number of nodes in value layer
     """
 
     def __init__(self, state_size: int, action_size: int, fc1_units: int = 64, fc2_units: int = 64,
