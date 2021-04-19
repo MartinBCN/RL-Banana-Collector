@@ -20,4 +20,4 @@ def load_df(file):
 df = pd.concat([load_df(file) for file in p.glob('*.json')])
 
 fig = px.line(df, x="Epoch", y="ScoreMean", color='Type')
-fig.write_json('_includes/scores.json')
+fig.write_image('figures/scores.png')

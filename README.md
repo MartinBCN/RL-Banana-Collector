@@ -16,7 +16,8 @@ which consists of 37 dimensions that include the agent's velocity along
 with ray-based perception of objects around the agent's forward direction. 
 Collection of a yellow banana gives a reward of +1, collection of a blue banana
 a penalty of -1.
-  
+![alt text](figures/banana.png "Scores")
+
 ## Getting Started
 The following section is taken from the Deep Reinforcement Udacity class
 

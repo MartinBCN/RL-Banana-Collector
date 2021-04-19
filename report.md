@@ -11,7 +11,7 @@ For the training algorithm a variety of approaches was tested:
 
 ## Plot of Rewards
 	
-{% include scores.html %}
+![alt text](figures/scores.png "Scores")
 
 A plot of rewards per episode is included to illustrate that the agent is able to receive an average reward (over 100 episodes) of at least +13. The submission reports the number of episodes needed to solve the environment.
 
