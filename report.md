@@ -21,7 +21,8 @@ For the training algorithm a variety of approaches were tested:
 
 The above plot shows the mean score over 100 episodes. The best-performing variations were the 
 two fixed-target implementations with an advantage for the dueling networks. Both solved the 
-problem in well below 2000 epochs. The other three implementations performed rather similar with
+problem in well below 2000 episodes, the dueling DQN implementation with fixed target in 1475 episodes.
+The other three implementations performed rather similar with
 a slight advantage for the basic implementation with a dueling DQN. Notice that while they did
 not solve the problem sufficiently fast, all of them were clearly learning. 
 

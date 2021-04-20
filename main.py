@@ -9,10 +9,6 @@ AGENTS = {'basic': BasicAgent, 'fixed_target': FixedQTargetAgent, 'double_q': Do
           'dueling_basic': DuelingBasicAgent, 'fixed_target_dueling': FixedTargetDuelingAgent}
 
 
-def parse_arguments():
-    pass
-
-
 def dqn(agent_type: str, n_episodes: int = 2000, max_t: int = 1000, eps_start: float = 1.0,
         eps_end: float = 0.01, eps_decay: float = 0.995, buffer_size: int = int(1e5), batch_size: int = 64,
         gamma: float = 0.99, tau: float = 1e-3, lr: float = 5e-4, update_every: int = 4) -> None:

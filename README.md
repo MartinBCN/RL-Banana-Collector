@@ -63,4 +63,8 @@ but you will be able to train the agent.
 , and then download the environment for the Linux operating system above.*)
 
 ## Instructions
-To run the 
+To run the training algorithm simply run 
+```
+python main.py
+```
+The same file can be modified to change hyper-parameter or models. 
