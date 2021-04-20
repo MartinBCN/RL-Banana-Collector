@@ -14,6 +14,32 @@ For the training algorithm a variety of approaches were tested:
 * Double DQN: two independent networks are used. Here the targets are calculated for both, 
     the minimum of the two is actually chosen. Then both networks calculate the expected
     values and back-propagation
+  
+The following hyper-parameter were used:
+
+* n_episodes: 2000, 
+    maximum number of training episodes
+* max_t: 1000, 
+    maximum number of time steps per episode
+* epsilon for epsilon-greedy action selection:
+    * eps_start: 1.0, 
+        starting value of epsilon
+    * eps_end: 0.01, 
+        minimum value of epsilon
+    * eps_decay: 0.995, 
+        multiplicative factor (per episode) for decreasing epsilon
+* buffer_size: int = 10,000, 
+    replay buffer size
+* batch_size: 64, 
+    mini-batch size
+* gamma: 0.99, 
+    discount factor
+* tau: 0.001, 
+    for soft update of target parameters
+* lr: 5e-4, 
+    Learning rate
+* update_every: 4, 
+    Number of time steps between updates of the network
 
 ## Plot of Rewards
 	
